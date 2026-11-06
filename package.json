@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "RealEyes — Real vs AI-Generated Image Guessing Game",
   "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run server:dev\" \"npm run client\"",
     "server": "cd server && npm start",
     "server:dev": "cd server && npm run dev",
     "client": "cd client && npm run dev",
