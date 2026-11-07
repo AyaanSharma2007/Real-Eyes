@@ -9,6 +9,19 @@ const router = express.Router();
 // In-memory session store for active game image lists
 const _sessionImageStore = new Map();
 
+// Helper to get session data from memory or SQLite fallback
+function getSessionData(sessionId) {
+  let sessionData = _sessionImageStore.get(sessionId);
+  if (!sessionData) {
+    const images = db.getSessionImages(sessionId);
+    if (images) {
+      sessionData = { images, createdAt: Date.now() };
+      _sessionImageStore.set(sessionId, sessionData);
+    }
+  }
+  return sessionData;
+}
+
 // Auto-cleanup sessions older than 1 hour
 setInterval(() => {
   const now = Date.now();
@@ -51,11 +64,12 @@ router.post('/start', (req, res) => {
     const sessionId = uuidv4();
     db.createSession(sessionId, player.id);
 
-    // Store images in memory for this session
+    // Store images in memory and SQLite for this session
     _sessionImageStore.set(sessionId, {
       images,
       createdAt: Date.now(),
     });
+    db.saveSessionImages(sessionId, images);
 
     return res.json({
       sessionId,
@@ -77,7 +91,7 @@ router.get('/image/:sessionId/:round', (req, res) => {
     const { sessionId, round } = req.params;
     const roundNum = parseInt(round, 10);
 
-    const sessionData = _sessionImageStore.get(sessionId);
+    const sessionData = getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }
@@ -115,7 +129,7 @@ router.get('/round/:sessionId/:round', (req, res) => {
     const { sessionId, round } = req.params;
     const roundNum = parseInt(round, 10);
 
-    const sessionData = _sessionImageStore.get(sessionId);
+    const sessionData = getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }
@@ -152,7 +166,7 @@ router.post('/answer', (req, res) => {
     const isTimeout = !answer || answer === 'timeout' || !['real', 'fake'].includes(answer);
     const cleanAnswer = isTimeout ? 'timeout' : answer;
 
-    const sessionData = _sessionImageStore.get(sessionId);
+    const sessionData = getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }

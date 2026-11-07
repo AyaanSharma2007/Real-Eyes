@@ -15,12 +15,24 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
 db.exec(schema);
 
+// Session cache table for fault tolerance across server restarts
+db.exec(`
+  CREATE TABLE IF NOT EXISTS session_cache (
+    session_id TEXT PRIMARY KEY,
+    images_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )
+`);
+
 // Prepared statements
 const stmts = {
   insertPlayer: db.prepare('INSERT INTO players (name) VALUES (?)'),
   getPlayerByName: db.prepare('SELECT * FROM players WHERE name = ?'),
   insertSession: db.prepare('INSERT INTO game_sessions (id, player_id) VALUES (?, ?)'),
   getSession: db.prepare('SELECT * FROM game_sessions WHERE id = ?'),
+  saveSessionCache: db.prepare('INSERT OR REPLACE INTO session_cache (session_id, images_json, created_at) VALUES (?, ?, ?)'),
+  getSessionCache: db.prepare('SELECT images_json FROM session_cache WHERE session_id = ?'),
+  deleteSessionCache: db.prepare('DELETE FROM session_cache WHERE session_id = ?'),
   insertAnswer: db.prepare(
     `INSERT INTO answers (session_id, image_id, player_answer, correct_answer, is_correct, time_taken_ms, round_number)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -100,12 +112,32 @@ function getLeaderboardPosition(sessionId) {
   return result ? result.position : null;
 }
 
+function saveSessionImages(sessionId, images) {
+  try {
+    stmts.saveSessionCache.run(sessionId, JSON.stringify(images), Date.now());
+  } catch (err) {
+    console.error('Failed to cache session images:', err);
+  }
+}
+
+function getSessionImages(sessionId) {
+  try {
+    const row = stmts.getSessionCache.get(sessionId);
+    return row ? JSON.parse(row.images_json) : null;
+  } catch (err) {
+    console.error('Failed to load cached session images:', err);
+    return null;
+  }
+}
+
 module.exports = {
   db,
   createPlayer,
   getPlayerByName,
   createSession,
   getSession,
+  saveSessionImages,
+  getSessionImages,
   saveAnswer,
   updateSessionScore,
   getLeaderboard,

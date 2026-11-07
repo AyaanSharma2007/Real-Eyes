@@ -12,8 +12,8 @@ const ROUND_DURATION = 5;
 export default function Game() {
   const location = useLocation();
   const navigate = useNavigate();
-  const sessionId = location.state?.sessionId;
-  const playerName = location.state?.playerName || 'Player';
+  const sessionId = location.state?.sessionId || sessionStorage.getItem('realeyes_sessionId');
+  const playerName = location.state?.playerName || sessionStorage.getItem('realeyes_playerName') || 'Player';
 
   const [currentRound, setCurrentRound] = useState(1);
   const [imageUrl, setImageUrl] = useState(null);
@@ -34,53 +34,6 @@ export default function Game() {
       navigate('/', { replace: true });
     }
   }, [sessionId, navigate]);
-
-  // Fetch round image
-  const fetchRound = useCallback(async (round) => {
-    setIsLoading(true);
-    setTimerActive(false);
-    setImageUrl(null);
-    answeredRef.current = false;
-    setError(null);
-
-    try {
-      const { data } = await api.get(`/game/round/${sessionId}/${round}`);
-      setImageUrl(data.imageUrl);
-      setIsLoading(false);
-    } catch (err) {
-      setError('Unable to load photo. Tap to retry.');
-      setIsLoading(false);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (sessionId) {
-      fetchRound(currentRound);
-    }
-  }, [sessionId, currentRound, fetchRound]);
-
-  // When image finishes loading in the browser
-  const handleImageLoad = useCallback(() => {
-    setTimerActive(true);
-    roundStartTimeRef.current = Date.now();
-  }, []);
-
-  // Keyboard shortcuts: Left Arrow / A / 1 for Real, Right Arrow / D / 2 for Fake
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!timerActive || answeredRef.current) return;
-      if (e.key === 'ArrowLeft' || e.key === '1' || e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        submitAnswer('real');
-      } else if (e.key === 'ArrowRight' || e.key === '2' || e.key.toLowerCase() === 'd') {
-        e.preventDefault();
-        submitAnswer('fake');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [timerActive, submitAnswer]);
 
   // Submit answer seamlessly without revealing feedback or running score
   const submitAnswer = useCallback(async (answer) => {
@@ -132,6 +85,53 @@ export default function Game() {
     }
   }, [sessionId, currentRound, navigate]);
 
+  // Fetch round image
+  const fetchRound = useCallback(async (round) => {
+    setIsLoading(true);
+    setTimerActive(false);
+    setImageUrl(null);
+    answeredRef.current = false;
+    setError(null);
+
+    try {
+      const { data } = await api.get(`/game/round/${sessionId}/${round}`);
+      setImageUrl(data.imageUrl);
+      setIsLoading(false);
+    } catch (err) {
+      setError('Unable to load photo. Tap to retry.');
+      setIsLoading(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchRound(currentRound);
+    }
+  }, [sessionId, currentRound, fetchRound]);
+
+  // When image finishes loading in the browser
+  const handleImageLoad = useCallback(() => {
+    setTimerActive(true);
+    roundStartTimeRef.current = Date.now();
+  }, []);
+
+  // Keyboard shortcuts: Left Arrow / A / 1 for Real, Right Arrow / D / 2 for Fake
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!timerActive || answeredRef.current) return;
+      if (e.key === 'ArrowLeft' || e.key === '1' || e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        submitAnswer('real');
+      } else if (e.key === 'ArrowRight' || e.key === '2' || e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        submitAnswer('fake');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [timerActive, submitAnswer]);
+
   // Timer callback (timeout)
   const handleTimeUp = useCallback(() => {
     submitAnswer('timeout');
@@ -176,20 +176,12 @@ export default function Game() {
       <main className="flex-1 flex flex-col items-center justify-center my-4 gap-4">
         {/* Timer — Remaining Time */}
         <div className="flex-shrink-0">
-          {timerActive && (
-            <Timer
-              duration={ROUND_DURATION}
-              onTimeUp={handleTimeUp}
-              resetKey={currentRound}
-            />
-          )}
-          {!timerActive && (
-            <div className="w-[84px] h-[84px] flex items-center justify-center">
-              {isLoading && (
-                <div className="w-8 h-8 border-3 border-slate-300 border-t-cyan-600 rounded-full animate-spin" />
-              )}
-            </div>
-          )}
+          <Timer
+            duration={ROUND_DURATION}
+            onTimeUp={handleTimeUp}
+            isPaused={!timerActive}
+            resetKey={currentRound}
+          />
         </div>
 
         {/* Image Card */}

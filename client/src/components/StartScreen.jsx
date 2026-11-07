@@ -23,6 +23,8 @@ export default function StartScreen() {
 
     try {
       const { data } = await api.post('/game/start', { playerName: trimmed });
+      sessionStorage.setItem('realeyes_sessionId', data.sessionId);
+      sessionStorage.setItem('realeyes_playerName', trimmed);
       navigate('/game', { state: { sessionId: data.sessionId, playerName: trimmed } });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to start game. Please try again.');

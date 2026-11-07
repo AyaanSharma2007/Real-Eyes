@@ -1,13 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 export default function ImageCard({ imageUrl, round, totalRounds, isLoading, onImageLoad }) {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const imgRef = useRef(null);
+  const hasTriggeredRef = useRef(false);
 
   const handleLoad = () => {
+    if (hasTriggeredRef.current) return;
+    hasTriggeredRef.current = true;
     setImgLoaded(true);
     onImageLoad?.();
   };
+
+  const handleError = () => {
+    if (hasTriggeredRef.current) return;
+    hasTriggeredRef.current = true;
+    setImgLoaded(true);
+    onImageLoad?.();
+  };
+
+  useEffect(() => {
+    setImgLoaded(false);
+    hasTriggeredRef.current = false;
+
+    // Check if image is already cached
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      handleLoad();
+    }
+
+    // Safety timeout: if image takes more than 2.5s, unblock timer and buttons
+    const timeout = setTimeout(() => {
+      if (!hasTriggeredRef.current) {
+        handleLoad();
+      }
+    }, 2500);
+
+    return () => clearTimeout(timeout);
+  }, [imageUrl, round]);
 
   return (
     <motion.div
@@ -29,16 +59,18 @@ export default function ImageCard({ imageUrl, round, totalRounds, isLoading, onI
           {(isLoading || !imgLoaded) && (
             <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 animate-pulse flex flex-col items-center justify-center gap-3">
               <div className="w-10 h-10 border-3 border-slate-300 border-t-cyan-600 rounded-full animate-spin" />
-              <p className="text-xs font-semibold text-slate-400">Loading specimen...</p>
+              <p className="text-xs font-semibold text-slate-400">Loading photo...</p>
             </div>
           )}
 
           {/* Actual image */}
           {imageUrl && (
             <img
+              ref={imgRef}
               src={imageUrl}
               alt="Subject under test"
               onLoad={handleLoad}
+              onError={handleError}
               className={`w-full h-full object-cover transition-opacity duration-200 select-none ${
                 imgLoaded && !isLoading ? 'opacity-100' : 'opacity-0'
               }`}

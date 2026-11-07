@@ -17,7 +17,7 @@ function getRating(score) {
 export default function ResultScreen() {
   const location = useLocation();
   const navigate = useNavigate();
-  const sessionId = location.state?.sessionId;
+  const sessionId = location.state?.sessionId || sessionStorage.getItem('realeyes_sessionId');
   const passedScore = location.state?.finalScore;
 
   const [result, setResult] = useState(null);
