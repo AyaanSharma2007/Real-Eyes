@@ -12,6 +12,7 @@ venv/
 
 # Secret Vault (Never commit hidden images)
 data/.vault/
+data/*.py
 
 # Database files
 *.db

@@ -62,7 +62,7 @@ router.post('/start', (req, res) => {
 
     // Create session
     const sessionId = uuidv4();
-    db.createSession(sessionId, player.id);
+    db.createSession(sessionId, player.id, images.length);
 
     // Store images in memory and SQLite for this session
     _sessionImageStore.set(sessionId, {
@@ -200,18 +200,20 @@ router.post('/answer', (req, res) => {
     // Save answer to database
     db.saveAnswer(sessionId, image.id, cleanAnswer, correctAnswer, isCorrect, timeTakenMs || 0, roundNum);
 
-    // Calculate current score
+    // Calculate current score & total time
     const answers = db.getSessionAnswers(sessionId);
     const score = answers.filter(a => a.is_correct).length;
+    const totalTimeMs = db.getSessionTotalTime(sessionId);
 
     // Update session score
     const isCompleted = roundNum === images.length;
-    db.updateSessionScore(sessionId, score, isCompleted);
+    db.updateSessionScore(sessionId, score, isCompleted, totalTimeMs);
 
     return res.json({
       correct: isCorrect,
       correctAnswer,
       score,
+      totalTimeMs,
       round: roundNum,
     });
   } catch (err) {
@@ -234,10 +236,11 @@ router.get('/result/:sessionId', (req, res) => {
     }
 
     // Mark as completed if not already
+    const totalTimeMs = db.getSessionTotalTime(sessionId);
     if (!session.completed) {
       const answers = db.getSessionAnswers(sessionId);
       const score = answers.filter(a => a.is_correct).length;
-      db.updateSessionScore(sessionId, score, true);
+      db.updateSessionScore(sessionId, score, true, totalTimeMs);
     }
 
     const updatedSession = db.getSession(sessionId);
@@ -258,6 +261,7 @@ router.get('/result/:sessionId', (req, res) => {
     return res.json({
       score: updatedSession.score,
       total: updatedSession.total,
+      totalTimeMs: updatedSession.total_time_ms || totalTimeMs,
       rounds: formattedRounds,
       answers: formattedRounds,
       leaderboardPosition,

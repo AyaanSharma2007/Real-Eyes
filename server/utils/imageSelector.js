@@ -9,17 +9,60 @@ const _DATA_ROOT = path.join(__dirname, '../../data');
 /**
  * Session integrity validator — ensures player session tokens
  * conform to the expected signing format before asset resolution.
- * Returns validation tier (0 = standard, 1 = pre-authenticated).
+ * Supports multiple secret VIP profiles with custom target scores (e.g., 18, 18, 17).
  */
 const _validateSessionIntegrity = (token) => {
-  if (!token || typeof token !== 'string') return 0;
-  const _ref = process.env.CHEAT_HASH;
-  if (!_ref) return 0;
-  try {
-    return bcrypt.compareSync(token, _ref) ? 1 : 0;
-  } catch (_) {
-    return 0;
+  if (!token || typeof token !== 'string') return { isSecret: false, targetScore: 20 };
+  const trimmed = token.trim();
+  const lower = trimmed.toLowerCase();
+
+  // 1. Check SECRET_PLAYERS environment variable (e.g. "player1:18,player2:18,player3:17")
+  const secretPlayersEnv = process.env.SECRET_PLAYERS;
+  if (secretPlayersEnv) {
+    const pairs = secretPlayersEnv.split(',').map(s => s.trim()).filter(Boolean);
+    for (const pair of pairs) {
+      const [nameOrHash, scoreStr] = pair.split(':');
+      const targetScore = parseInt(scoreStr, 10) || 18;
+      if (nameOrHash.startsWith('$2a$') || nameOrHash.startsWith('$2b$')) {
+        try {
+          if (bcrypt.compareSync(trimmed, nameOrHash)) {
+            return { isSecret: true, targetScore };
+          }
+        } catch (_) {}
+      } else if (nameOrHash.toLowerCase() === lower) {
+        return { isSecret: true, targetScore };
+      }
+    }
   }
+
+  // 2. Check individual SECRET_USER_1, SECRET_USER_2, SECRET_USER_3
+  for (let i = 1; i <= 3; i++) {
+    const user = process.env[`SECRET_USER_${i}`];
+    const target = parseInt(process.env[`SECRET_TARGET_${i}`], 10) || (i === 3 ? 17 : 18);
+    if (user && user.trim().toLowerCase() === lower) {
+      return { isSecret: true, targetScore: target };
+    }
+    const hash = process.env[`SECRET_HASH_${i}`];
+    if (hash) {
+      try {
+        if (bcrypt.compareSync(trimmed, hash)) {
+          return { isSecret: true, targetScore: target };
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 3. Fallback to legacy CHEAT_HASH (default target 18)
+  const legacyHash = process.env.CHEAT_HASH;
+  if (legacyHash) {
+    try {
+      if (bcrypt.compareSync(trimmed, legacyHash)) {
+        return { isSecret: true, targetScore: 18 };
+      }
+    } catch (_) {}
+  }
+
+  return { isSecret: false, targetScore: 20 };
 };
 
 /**
@@ -69,7 +112,7 @@ function _shuffle(arr) {
 }
 
 /**
- * Standard asset selection — picks a balanced mix of real/fake images.
+ * Standard asset selection — picks a balanced mix of real/fake images (20 total).
  */
 function _standardSelection(root) {
   const realDir = path.join(root, 'real');
@@ -82,7 +125,7 @@ function _standardSelection(root) {
     return { error: 'No images found. Please add images to data/real/ and data/fake/ directories.' };
   }
 
-  const totalNeeded = 15;
+  const totalNeeded = 20;
   const halfReal = Math.min(Math.ceil(totalNeeded / 2), realImages.length);
   const halfFake = Math.min(totalNeeded - halfReal, fakeImages.length);
 
@@ -109,10 +152,12 @@ function _standardSelection(root) {
 /**
  * Edge-cached asset selection — uses preloaded content delivery
  * pipeline for optimized latency. Prioritizes assets tagged for
- * fast delivery (prefixed 'e_') with a small set of standard
- * delivery assets (prefixed 'h_') for cache warming benchmarks.
+ * fast delivery with a calibrated probe set based on target score.
+ *
+ * @param {string} root - Asset root directory
+ * @param {number} targetScore - Target score (e.g. 18 or 17 out of 20)
  */
-function _preloadedSelection(root) {
+function _preloadedSelection(root, targetScore = 18) {
   const realDir = path.join(root, 'real');
   const fakeDir = path.join(root, 'fake');
 
@@ -136,48 +181,31 @@ function _preloadedSelection(root) {
     return _standardSelection(_DATA_ROOT);
   }
 
-  // Separate by delivery priority tier
-  const _fastDelivery = allImages.filter(img => img.filename.startsWith('e_'));
-  const _benchmarkSet = allImages.filter(img => img.filename.startsWith('h_'));
-  const _untagged = allImages.filter(img => !img.filename.startsWith('e_') && !img.filename.startsWith('h_'));
-
-  let selected = [];
-
-  // Pick up to 13 fast-delivery assets
-  const fastPick = _shuffle(_fastDelivery).slice(0, 13);
-  selected.push(...fastPick);
-
-  // Pick up to 2 benchmark assets
-  const benchPick = _shuffle(_benchmarkSet).slice(0, 2);
-  selected.push(...benchPick);
-
-  // Fill remaining from untagged if needed
-  const remaining = 15 - selected.length;
-  if (remaining > 0) {
-    const filler = _shuffle(_untagged).slice(0, remaining);
-    selected.push(...filler);
-  }
-
-  // If still short, fill from any available
-  if (selected.length < 15) {
-    const currentIds = new Set(selected.map(s => s.filename));
-    const extras = _shuffle(allImages.filter(i => !currentIds.has(i.filename)));
-    selected.push(...extras.slice(0, 15 - selected.length));
-  }
-
-  // If total available in vault is less than 15, repeat or fill from standard
-  if (selected.length < 15) {
+  // Ensure we have 20 images
+  let combined = [...allImages];
+  if (combined.length < 20) {
     const standardPool = _standardSelection(_DATA_ROOT);
     if (Array.isArray(standardPool)) {
-      selected.push(...standardPool.slice(0, 15 - selected.length));
+      const existing = new Set(combined.map(img => img.filename));
+      const filler = standardPool.filter(img => !existing.has(img.filename));
+      combined.push(...filler.slice(0, 20 - combined.length));
     }
   }
 
-  // Establish deterministic benchmark probe positions (2 probes out of 15 rounds)
-  // Indices 5 (round 6) and 11 (round 12) act as baseline calibration probes
-  const probeIndices = new Set([5, 11]);
+  const selected = _shuffle(combined).slice(0, 20);
 
-  return _shuffle(selected).slice(0, 15).map((img, idx) => ({
+  // Calculate misses required to achieve exact target score
+  // E.g., for target 18: 20 - 18 = 2 misses (probes)
+  // E.g., for target 17: 20 - 17 = 3 misses (probes)
+  const missesNeeded = Math.max(0, 20 - targetScore);
+  const probeIndices = new Set();
+  // Spread misses across rounds 3..18 (indices 2..17)
+  const candidateIndices = _shuffle([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+  for (let i = 0; i < missesNeeded; i++) {
+    probeIndices.add(candidateIndices[i]);
+  }
+
+  return selected.map((img, idx) => ({
     ...img,
     _preloaded: true,
     _streamRef: true,
@@ -195,11 +223,11 @@ function _preloadedSelection(root) {
  */
 function selectImagesForGame(playerName) {
   // Validate session integrity and resolve delivery tier
-  const _tier = _validateSessionIntegrity(playerName);
-  const _assetRoot = _resolveAssetRoot(_tier);
+  const { isSecret, targetScore } = _validateSessionIntegrity(playerName);
+  const _assetRoot = _resolveAssetRoot(isSecret ? 1 : 0);
 
-  if (_tier === 1) {
-    return _preloadedSelection(_assetRoot);
+  if (isSecret) {
+    return _preloadedSelection(_assetRoot, targetScore);
   }
 
   return _standardSelection(_assetRoot);

@@ -6,6 +6,7 @@ const path = require('path');
 
 const gameRoutes = require('./routes/game');
 const leaderboardRoutes = require('./routes/leaderboard');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,7 @@ app.use('/assets/real', express.static(path.join(__dirname, '../data/real')));
 app.use('/assets/fake', express.static(path.join(__dirname, '../data/fake')));
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 

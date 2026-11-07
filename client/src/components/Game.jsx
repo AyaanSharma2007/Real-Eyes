@@ -6,7 +6,7 @@ import api from '../api';
 import Timer from './Timer';
 import ImageCard from './ImageCard';
 
-const TOTAL_ROUNDS = 15;
+const TOTAL_ROUNDS = 20;
 const ROUND_DURATION = 5;
 
 export default function Game() {

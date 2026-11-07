@@ -15,6 +15,11 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
 db.exec(schema);
 
+// Migration: add total_time_ms column if not exists
+try {
+  db.exec('ALTER TABLE game_sessions ADD COLUMN total_time_ms INTEGER DEFAULT 0');
+} catch (_) {}
+
 // Session cache table for fault tolerance across server restarts
 db.exec(`
   CREATE TABLE IF NOT EXISTS session_cache (
@@ -28,7 +33,7 @@ db.exec(`
 const stmts = {
   insertPlayer: db.prepare('INSERT INTO players (name) VALUES (?)'),
   getPlayerByName: db.prepare('SELECT * FROM players WHERE name = ?'),
-  insertSession: db.prepare('INSERT INTO game_sessions (id, player_id) VALUES (?, ?)'),
+  insertSession: db.prepare('INSERT INTO game_sessions (id, player_id, total) VALUES (?, ?, ?)'),
   getSession: db.prepare('SELECT * FROM game_sessions WHERE id = ?'),
   saveSessionCache: db.prepare('INSERT OR REPLACE INTO session_cache (session_id, images_json, created_at) VALUES (?, ?, ?)'),
   getSessionCache: db.prepare('SELECT images_json FROM session_cache WHERE session_id = ?'),
@@ -38,21 +43,26 @@ const stmts = {
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ),
   updateScore: db.prepare(
-    'UPDATE game_sessions SET score = ?, completed = ?, completed_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?'
+    'UPDATE game_sessions SET score = ?, completed = ?, total_time_ms = ?, completed_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?'
   ),
   getLeaderboard: db.prepare(
-    `SELECT gs.id, p.name AS playerName, gs.score, gs.total, gs.completed_at AS completedAt
+    `SELECT gs.id, p.name AS playerName, gs.score, gs.total, gs.total_time_ms AS totalTimeMs, gs.completed_at AS completedAt
      FROM game_sessions gs
      JOIN players p ON gs.player_id = p.id
      WHERE gs.completed = 1
-     ORDER BY gs.score DESC, gs.completed_at ASC
+     ORDER BY gs.score DESC, gs.total_time_ms ASC, gs.completed_at ASC
      LIMIT ?`
   ),
   getSessionAnswers: db.prepare('SELECT * FROM answers WHERE session_id = ? ORDER BY round_number ASC'),
+  getSessionTotalTime: db.prepare('SELECT COALESCE(SUM(time_taken_ms), 0) AS totalTime FROM answers WHERE session_id = ?'),
   getLeaderboardPosition: db.prepare(
     `SELECT COUNT(*) + 1 AS position
      FROM game_sessions
-     WHERE completed = 1 AND (score > ? OR (score = ? AND completed_at < ?))`
+     WHERE completed = 1 AND (
+       score > ? OR 
+       (score = ? AND total_time_ms < ?) OR
+       (score = ? AND total_time_ms = ? AND completed_at < ?)
+     )`
   ),
 };
 
@@ -67,8 +77,8 @@ function getPlayerByName(name) {
   return stmts.getPlayerByName.get(name) || null;
 }
 
-function createSession(sessionId, playerId) {
-  stmts.insertSession.run(sessionId, playerId);
+function createSession(sessionId, playerId, total = 20) {
+  stmts.insertSession.run(sessionId, playerId, total);
   return stmts.getSession.get(sessionId);
 }
 
@@ -83,9 +93,18 @@ function saveAnswer(sessionId, imageId, playerAnswer, correctAnswer, isCorrect, 
   return { id: result.lastInsertRowid };
 }
 
-function updateSessionScore(sessionId, score, completed) {
-  stmts.updateScore.run(score, completed ? 1 : 0, completed ? 1 : 0, sessionId);
+function updateSessionScore(sessionId, score, completed, totalTimeMs = 0) {
+  if (!totalTimeMs) {
+    const timeRow = stmts.getSessionTotalTime.get(sessionId);
+    totalTimeMs = timeRow ? timeRow.totalTime : 0;
+  }
+  stmts.updateScore.run(score, completed ? 1 : 0, totalTimeMs, completed ? 1 : 0, sessionId);
   return stmts.getSession.get(sessionId);
+}
+
+function getSessionTotalTime(sessionId) {
+  const timeRow = stmts.getSessionTotalTime.get(sessionId);
+  return timeRow ? timeRow.totalTime : 0;
 }
 
 function getLeaderboard(limit = 10) {
@@ -96,6 +115,7 @@ function getLeaderboard(limit = 10) {
     playerName: row.playerName,
     score: row.score,
     total: row.total,
+    totalTimeMs: row.totalTimeMs || 0,
     date: row.completedAt,
     completedAt: row.completedAt,
   }));
@@ -108,7 +128,15 @@ function getSessionAnswers(sessionId) {
 function getLeaderboardPosition(sessionId) {
   const session = getSession(sessionId);
   if (!session || !session.completed) return null;
-  const result = stmts.getLeaderboardPosition.get(session.score, session.score, session.completed_at);
+  const time = session.total_time_ms || 0;
+  const result = stmts.getLeaderboardPosition.get(
+    session.score,
+    session.score,
+    time,
+    session.score,
+    time,
+    session.completed_at
+  );
   return result ? result.position : null;
 }
 
@@ -142,5 +170,6 @@ module.exports = {
   updateSessionScore,
   getLeaderboard,
   getSessionAnswers,
+  getSessionTotalTime,
   getLeaderboardPosition,
 };

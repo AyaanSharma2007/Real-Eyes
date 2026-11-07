@@ -89,10 +89,11 @@ export default function Scoreboard() {
           className="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-xl shadow-slate-200/60"
         >
           {/* Table Header */}
-          <div className="grid grid-cols-[48px_1fr_90px_100px] px-5 py-3.5 bg-slate-50/80 border-b border-slate-200 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+          <div className="grid grid-cols-[44px_1fr_75px_75px_75px] px-4 sm:px-5 py-3.5 bg-slate-50/80 border-b border-slate-200 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
             <span>Rank</span>
             <span>Player</span>
             <span className="text-center">Score</span>
+            <span className="text-center">Time</span>
             <span className="text-right">Date</span>
           </div>
 
@@ -101,11 +102,12 @@ export default function Scoreboard() {
             {leaderboard.map((entry, idx) => {
               const isCurrent = currentSessionId && (entry.sessionId === currentSessionId || entry.id === currentSessionId);
               const rank = idx + 1;
+              const timeSec = entry.totalTimeMs ? (entry.totalTimeMs / 1000).toFixed(1) + 's' : '—';
 
               return (
                 <div
                   key={entry.sessionId || entry.id || idx}
-                  className={`grid grid-cols-[48px_1fr_90px_100px] px-5 py-3.5 items-center transition-colors ${
+                  className={`grid grid-cols-[44px_1fr_75px_75px_75px] px-4 sm:px-5 py-3.5 items-center transition-colors ${
                     isCurrent
                       ? 'bg-cyan-50/70 border-l-4 border-l-cyan-600 font-semibold'
                       : 'hover:bg-slate-50/70'
@@ -119,10 +121,10 @@ export default function Scoreboard() {
                     )}
                   </span>
 
-                  <span className="truncate text-slate-800 text-sm font-semibold">
+                  <span className="truncate text-slate-800 text-sm font-semibold pr-1">
                     {entry.playerName}
                     {isCurrent && (
-                      <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-100/70 px-2 py-0.5 rounded-full">
+                      <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-100/70 px-1.5 py-0.5 rounded-full">
                         You
                       </span>
                     )}
@@ -130,10 +132,14 @@ export default function Scoreboard() {
 
                   <div className="text-center">
                     <span className="text-sm font-black text-slate-900">{entry.score}</span>
-                    <span className="text-xs font-bold text-slate-400">/15</span>
+                    <span className="text-xs font-bold text-slate-400">/{entry.total || 20}</span>
                   </div>
 
-                  <span className="text-right text-xs text-slate-400 font-medium">
+                  <div className="text-center">
+                    <span className="text-xs font-bold text-slate-600 tabular-nums">{timeSec}</span>
+                  </div>
+
+                  <span className="text-right text-xs text-slate-400 font-medium truncate">
                     {entry.date || entry.completedAt
                       ? new Date(entry.date || entry.completedAt).toLocaleDateString('en-US', {
                           month: 'short',

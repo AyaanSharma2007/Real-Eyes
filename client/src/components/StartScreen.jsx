@@ -1,23 +1,30 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Trophy, ArrowRight, ShieldCheck, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, ArrowRight, ShieldCheck, Sparkles, Image as ImageIcon, BookOpen } from 'lucide-react';
 import api from '../api';
+import RulebookModal from './RulebookModal';
 
 export default function StartScreen() {
   const [playerName, setPlayerName] = useState('');
+  const [showRulebook, setShowRulebook] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleStart = async (e) => {
+  const handleNameSubmit = (e) => {
     e.preventDefault();
     const trimmed = playerName.trim();
     if (!trimmed) {
       setError('Please enter your name to start');
       return;
     }
+    setError('');
+    setShowRulebook(true);
+  };
 
+  const handleStartGame = async () => {
+    const trimmed = playerName.trim();
     setIsLoading(true);
     setError('');
 
@@ -29,6 +36,7 @@ export default function StartScreen() {
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to start game. Please try again.');
       setIsLoading(false);
+      setShowRulebook(false);
     }
   };
 
@@ -37,6 +45,18 @@ export default function StartScreen() {
       {/* Subtle light ambient glow circles */}
       <div className="absolute top-1/6 left-1/2 -translate-x-1/2 w-[550px] h-[550px] bg-cyan-200/40 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-1/6 right-1/4 w-[450px] h-[450px] bg-violet-200/40 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* Rulebook Modal */}
+      <AnimatePresence>
+        {showRulebook && (
+          <RulebookModal
+            playerName={playerName.trim()}
+            onConfirm={handleStartGame}
+            onBack={() => setShowRulebook(false)}
+            isLoading={isLoading}
+          />
+        )}
+      </AnimatePresence>
 
       <motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -66,7 +86,7 @@ export default function StartScreen() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleStart} className="space-y-4">
+          <form onSubmit={handleNameSubmit} className="space-y-4">
             <div>
               <label htmlFor="playerName" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                 Player Name
@@ -98,19 +118,12 @@ export default function StartScreen() {
 
             <motion.button
               type="submit"
-              disabled={isLoading}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white font-bold text-base rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 cursor-pointer"
+              className="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white font-bold text-base rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25 cursor-pointer"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  Start Challenge
-                  <ArrowRight size={18} />
-                </>
-              )}
+              <span>Continue to Briefing</span>
+              <ArrowRight size={18} />
             </motion.button>
           </form>
 
@@ -129,7 +142,7 @@ export default function StartScreen() {
         {/* Game Rules / Badges */}
         <div className="mt-8 grid grid-cols-3 gap-3 text-center">
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-            <p className="text-lg font-black text-slate-800">15</p>
+            <p className="text-lg font-black text-slate-800">20</p>
             <p className="text-xs text-slate-500 font-medium">Images</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
@@ -137,8 +150,8 @@ export default function StartScreen() {
             <p className="text-xs text-slate-500 font-medium">Per Photo</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-            <p className="text-lg font-black text-violet-600">Fast</p>
-            <p className="text-xs text-slate-500 font-medium">Scoring</p>
+            <p className="text-lg font-black text-violet-600">Speed</p>
+            <p className="text-xs text-slate-500 font-medium">Rankings</p>
           </div>
         </div>
       </motion.div>

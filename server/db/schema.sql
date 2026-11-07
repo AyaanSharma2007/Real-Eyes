@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     id TEXT PRIMARY KEY,
     player_id INTEGER REFERENCES players(id),
     score INTEGER DEFAULT 0,
-    total INTEGER DEFAULT 15,
+    total INTEGER DEFAULT 20,
+    total_time_ms INTEGER DEFAULT 0,
     completed BOOLEAN DEFAULT 0,
     completed_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
