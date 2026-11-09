@@ -14,6 +14,8 @@
     "set-secrets": "node scripts/set-secret-players.js",
     "download-dataset": "python3 scripts/download_images.py",
     "download:photorealistic": "python3 scripts/download_photorealistic_dataset.py",
+    "apply-noise": "python3 scripts/apply_camera_noise.py --target all",
+    "apply-noise:fake": "python3 scripts/apply_camera_noise.py --target fake",
     "test:gameplay": "cd server && NODE_PATH=\"./node_modules\" node \"../scripts/test_gameplay.js\""
   },
   "keywords": [
