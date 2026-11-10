@@ -132,7 +132,7 @@ export default function Scoreboard() {
 
                   <div className="text-center">
                     <span className="text-sm font-black text-slate-900">{entry.score}</span>
-                    <span className="text-xs font-bold text-slate-400">/{entry.total || 20}</span>
+                    <span className="text-xs font-bold text-slate-400">/{entry.total || 25}</span>
                   </div>
 
                   <div className="text-center">

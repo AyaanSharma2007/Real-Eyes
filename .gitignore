@@ -4,7 +4,7 @@ client/node_modules/
 server/node_modules/
 scripts/.venv/
 venv/
-
+.originals_backup/
 # Environment & Secrets (Hidden)
 .env
 .env.*

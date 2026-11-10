@@ -142,12 +142,12 @@ export default function StartScreen() {
         {/* Game Rules / Badges */}
         <div className="mt-8 grid grid-cols-3 gap-3 text-center">
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-            <p className="text-lg font-black text-slate-800">20</p>
+            <p className="text-lg font-black text-slate-800">25</p>
             <p className="text-xs text-slate-500 font-medium">Images</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-            <p className="text-lg font-black text-cyan-600">5s</p>
-            <p className="text-xs text-slate-500 font-medium">Per Photo</p>
+            <p className="text-lg font-black text-cyan-600">90s</p>
+            <p className="text-xs text-slate-500 font-medium">Total Time</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
             <p className="text-lg font-black text-violet-600">Speed</p>

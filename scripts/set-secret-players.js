@@ -8,11 +8,11 @@
  *   npm run set-secrets "PlayerOne" "PlayerTwo" "PlayerThree"
  * 
  * This hashes all 3 player names using bcrypt and writes them to .env as:
- *   SECRET_PLAYERS=<hash1>:18,<hash2>:18,<hash3>:17
+ *   SECRET_PLAYERS=<hash1>:23,<hash2>:23,<hash3>:22
  * 
- * Player 1 always scores: 18 / 20
- * Player 2 always scores: 18 / 20
- * Player 3 always scores: 17 / 20
+ * Player 1 always scores: 23 / 25
+ * Player 2 always scores: 23 / 25
+ * Player 3 always scores: 22 / 25
  */
 
 const fs = require('fs');
@@ -44,17 +44,17 @@ async function prompt(question) {
 async function main() {
   let [p1, p2, p3] = process.argv.slice(2);
 
-  console.log('\n🔒 RealEyes Secret Players Configuration');
-  console.log('-----------------------------------------');
+  console.log('\n🔒 RealEyes Secret Players Configuration (25 Images Total)');
+  console.log('---------------------------------------------------------');
 
   if (!p1) {
-    p1 = await prompt('Enter username for VIP 1 (will always score 18/20): ');
+    p1 = await prompt('Enter username for VIP 1 (default score 23/25): ');
   }
   if (!p2) {
-    p2 = await prompt('Enter username for VIP 2 (will always score 18/20): ');
+    p2 = await prompt('Enter username for VIP 2 (default score 23/25): ');
   }
   if (!p3) {
-    p3 = await prompt('Enter username for VIP 3 (will always score 17/20): ');
+    p3 = await prompt('Enter username for VIP 3 (default score 22/25): ');
   }
 
   if (!p1 || !p2 || !p3) {
@@ -70,7 +70,7 @@ async function main() {
   const hash2 = bcrypt.hashSync(p2.trim(), salt2);
   const hash3 = bcrypt.hashSync(p3.trim(), salt3);
 
-  const secretPlayersVal = `${hash1}:18,${hash2}:18,${hash3}:17`;
+  const secretPlayersVal = `${hash1}:23,${hash2}:23,${hash3}:22`;
 
   let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
 
@@ -83,9 +83,9 @@ async function main() {
   fs.writeFileSync(envPath, envContent.trim() + '\n', 'utf-8');
 
   console.log('\n✅ Successfully configured 3 secret VIP players in .env:');
-  console.log(`   1. "${p1.trim()}" -> Target Score: 18 / 20`);
-  console.log(`   2. "${p2.trim()}" -> Target Score: 18 / 20`);
-  console.log(`   3. "${p3.trim()}" -> Target Score: 17 / 20`);
+  console.log(`   1. "${p1.trim()}" -> Target Score: 23 / 25`);
+  console.log(`   2. "${p2.trim()}" -> Target Score: 23 / 25`);
+  console.log(`   3. "${p3.trim()}" -> Target Score: 22 / 25`);
   console.log('\n📋 Render.com Environment Variable:');
   console.log('   In your Render Web Service -> "Environment" tab, set:');
   console.log(`   Key:   SECRET_PLAYERS`);
@@ -96,4 +96,3 @@ main().catch(err => {
   console.error('Error:', err);
   process.exit(1);
 });
-

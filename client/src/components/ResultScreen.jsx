@@ -4,13 +4,13 @@ import { motion } from 'framer-motion';
 import { RotateCcw, Trophy, Check, X, Clock, Award } from 'lucide-react';
 import api from '../api';
 
-const TOTAL_ROUNDS = 20;
+const TOTAL_ROUNDS = 25;
 
 function getRating(score) {
-  if (score === 20) return { emoji: '🔥', title: 'Perfection!', text: 'You possess superhuman pattern detection!' };
-  if (score >= 17) return { emoji: '🎯', title: 'Eagle Eye!', text: "Exceptional accuracy. Almost impossible to deceive!" };
-  if (score >= 13) return { emoji: '👀', title: 'Sharp Mind!', text: 'Strong instinct. You caught most of the subtle AI tells.' };
-  if (score >= 8)  return { emoji: '🤖', title: 'Tricked by AI!', text: 'Generative models got the upper hand this time.' };
+  if (score === 25) return { emoji: '🔥', title: 'Perfection!', text: 'You possess superhuman pattern detection!' };
+  if (score >= 21) return { emoji: '🎯', title: 'Eagle Eye!', text: "Exceptional accuracy. Almost impossible to deceive!" };
+  if (score >= 16) return { emoji: '👀', title: 'Sharp Mind!', text: 'Strong instinct. You caught most of the subtle AI tells.' };
+  if (score >= 10) return { emoji: '🤖', title: 'Tricked by AI!', text: 'Generative models got the upper hand this time.' };
   return { emoji: '😵', title: 'AI Overlord!', text: 'Are you sure you aren’t generating these yourself?' };
 }
 
@@ -104,10 +104,18 @@ export default function ResultScreen() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {result?.totalTimeMs !== undefined && (
+            {(result?.totalTimeMs !== undefined || location.state?.totalTimeMs !== undefined) && (
               <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full">
                 <Clock size={13} className="text-cyan-600" />
-                <span>Total Time: {(result.totalTimeMs / 1000).toFixed(1)}s</span>
+                <span>
+                  Total Time: {(((result?.totalTimeMs ?? location.state?.totalTimeMs) || 0) / 1000).toFixed(1)}s / 90s
+                </span>
+              </div>
+            )}
+
+            {location.state?.timedOutGlobal && (
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-full">
+                <span>⏰ 90s Time Expired</span>
               </div>
             )}
 

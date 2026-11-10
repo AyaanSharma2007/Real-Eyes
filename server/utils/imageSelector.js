@@ -52,17 +52,17 @@ const _validateSessionIntegrity = (token) => {
     }
   }
 
-  // 3. Fallback to legacy CHEAT_HASH (default target 18)
+  // 3. Fallback to legacy CHEAT_HASH (default target 23 / 25)
   const legacyHash = process.env.CHEAT_HASH;
   if (legacyHash) {
     try {
       if (bcrypt.compareSync(trimmed, legacyHash)) {
-        return { isSecret: true, targetScore: 18 };
+        return { isSecret: true, targetScore: 23 };
       }
     } catch (_) {}
   }
 
-  return { isSecret: false, targetScore: 20 };
+  return { isSecret: false, targetScore: 25 };
 };
 
 /**
@@ -112,7 +112,7 @@ function _shuffle(arr) {
 }
 
 /**
- * Standard asset selection — picks a balanced mix of real/fake images (20 total).
+ * Standard asset selection — picks a balanced mix of real/fake images (25 total).
  */
 function _standardSelection(root) {
   const realDir = path.join(root, 'real');
@@ -125,7 +125,7 @@ function _standardSelection(root) {
     return { error: 'No images found. Please add images to data/real/ and data/fake/ directories.' };
   }
 
-  const totalNeeded = 20;
+  const totalNeeded = 25;
   const halfReal = Math.min(Math.ceil(totalNeeded / 2), realImages.length);
   const halfFake = Math.min(totalNeeded - halfReal, fakeImages.length);
 
@@ -155,9 +155,9 @@ function _standardSelection(root) {
  * fast delivery with a calibrated probe set based on target score.
  *
  * @param {string} root - Asset root directory
- * @param {number} targetScore - Target score (e.g. 18 or 17 out of 20)
+ * @param {number} targetScore - Target score (e.g. 23, 22 out of 25)
  */
-function _preloadedSelection(root, targetScore = 18) {
+function _preloadedSelection(root, targetScore = 23) {
   const realDir = path.join(root, 'real');
   const fakeDir = path.join(root, 'fake');
 
@@ -181,26 +181,26 @@ function _preloadedSelection(root, targetScore = 18) {
     return _standardSelection(_DATA_ROOT);
   }
 
-  // Ensure we have 20 images
+  // Ensure we have 25 images
   let combined = [...allImages];
-  if (combined.length < 20) {
+  if (combined.length < 25) {
     const standardPool = _standardSelection(_DATA_ROOT);
     if (Array.isArray(standardPool)) {
       const existing = new Set(combined.map(img => img.filename));
       const filler = standardPool.filter(img => !existing.has(img.filename));
-      combined.push(...filler.slice(0, 20 - combined.length));
+      combined.push(...filler.slice(0, 25 - combined.length));
     }
   }
 
-  const selected = _shuffle(combined).slice(0, 20);
+  const selected = _shuffle(combined).slice(0, 25);
 
   // Calculate misses required to achieve exact target score
-  // E.g., for target 18: 20 - 18 = 2 misses (probes)
-  // E.g., for target 17: 20 - 17 = 3 misses (probes)
-  const missesNeeded = Math.max(0, 20 - targetScore);
+  // If targetScore > 20 (e.g. 23 or 22 out of 25): 25 - targetScore
+  // If targetScore <= 20 (legacy e.g. 18 or 17 out of 20): 20 - targetScore (2 misses or 3 misses)
+  const missesNeeded = targetScore > 20 ? Math.max(0, 25 - targetScore) : Math.max(0, 20 - targetScore);
   const probeIndices = new Set();
-  // Spread misses across rounds 3..18 (indices 2..17)
-  const candidateIndices = _shuffle([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+  // Spread misses across rounds 3..23 (indices 2..22)
+  const candidateIndices = _shuffle([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
   for (let i = 0; i < missesNeeded; i++) {
     probeIndices.add(candidateIndices[i]);
   }

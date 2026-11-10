@@ -74,7 +74,7 @@ router.post('/start', (req, res) => {
     return res.json({
       sessionId,
       totalRounds: images.length,
-      timePerRound: 5000,
+      totalGameTimeMs: 90000,
     });
   } catch (err) {
     console.error('Error starting game:', err);

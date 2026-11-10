@@ -77,7 +77,7 @@ function getPlayerByName(name) {
   return stmts.getPlayerByName.get(name) || null;
 }
 
-function createSession(sessionId, playerId, total = 20) {
+function createSession(sessionId, playerId, total = 25) {
   stmts.insertSession.run(sessionId, playerId, total);
   return stmts.getSession.get(sessionId);
 }
