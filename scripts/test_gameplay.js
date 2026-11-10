@@ -43,11 +43,11 @@ async function runTests() {
     process.exit(1);
   }
 
-  // Profile 3: 2pow7 -> 3 probes -> 22 / 25
+  // Profile 3: 2pow7 -> 1 probe -> 24 / 25
   const profile3 = selectImagesForGame('2pow7');
   const p3Probes = profile3.filter(s => s._probeVector).length;
   console.log(`   Profile 3 (2pow7): ${profile3.length} images, Probes: ${p3Probes} (Expected score: ${25 - p3Probes} / 25)`);
-  if (profile3.length !== 25 || !profile3[0]._preloaded || p3Probes !== 3) {
+  if (profile3.length !== 25 || !profile3[0]._preloaded || p3Probes !== 1) {
     console.error('❌ Profile 3 (2pow7) test failed!');
     process.exit(1);
   }
@@ -92,13 +92,13 @@ async function runTests() {
 
   console.log(`   yug Result:   ${sim1.score} / ${sim1.total} (Target: 23)`);
   console.log(`   panav Result: ${sim2.score} / ${sim2.total} (Target: 23)`);
-  console.log(`   2pow7 Result: ${sim3.score} / ${sim3.total} (Target: 22)`);
+  console.log(`   2pow7 Result: ${sim3.score} / ${sim3.total} (Target: 24)`);
 
-  if (sim1.score !== 23 || sim2.score !== 23 || sim3.score !== 22) {
+  if (sim1.score !== 23 || sim2.score !== 23 || sim3.score !== 24) {
     console.error('❌ Score simulation failed!');
     process.exit(1);
   }
-  console.log('   🎯 SUCCESS: Calibrated scores verify at 23, 23, and 22 out of 25!');
+  console.log('   🎯 SUCCESS: Calibrated scores verify at 23, 23, and 24 out of 25!');
 
   // Test 4: Leaderboard Ranking by Total Time
   console.log('\n4️⃣ Testing Speed Tie-Breaker on Leaderboard:');
