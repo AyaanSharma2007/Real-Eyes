@@ -22,37 +22,36 @@ async function runTests() {
   }
   console.log('   ✅ Normal player gets 25 standard images from dataset.');
 
-  // Test 2: Testing 3 Secret VIP Players (Targets: 18/20 -> 23/25, 18/20 -> 23/25, 17/20 -> 22/25)
-  console.log('\n2️⃣ Testing 3 Secret VIP Players:');
-  process.env.SECRET_PLAYERS = 'VipAlex:18,VipMaya:18,VipSam:17';
+  // Test 2: Testing 3 Configured VIP Players (yug, panav, 2pow7)
+  console.log('\n2️⃣ Testing Configured VIP Players (yug, panav, 2pow7):');
 
-  // VIP 1: VipAlex -> 2 misses -> 23 / 25
-  const vip1 = selectImagesForGame('VipAlex');
+  // VIP 1: yug -> 2 misses -> 23 / 25
+  const vip1 = selectImagesForGame('yug');
   const vip1Probes = vip1.filter(s => s._probeVector).length;
-  console.log(`   VIP 1 (VipAlex): ${vip1.length} images, Probes: ${vip1Probes} (Expected score: ${25 - vip1Probes} / 25)`);
+  console.log(`   VIP 1 (yug): ${vip1.length} images, Probes: ${vip1Probes} (Expected score: ${25 - vip1Probes} / 25)`);
   if (vip1.length !== 25 || !vip1[0]._preloaded || vip1Probes !== 2) {
-    console.error('❌ VIP 1 test failed!');
+    console.error('❌ VIP 1 (yug) test failed!');
     process.exit(1);
   }
 
-  // VIP 2: VipMaya -> 2 misses -> 23 / 25
-  const vip2 = selectImagesForGame('VipMaya');
+  // VIP 2: panav -> 2 misses -> 23 / 25
+  const vip2 = selectImagesForGame('panav');
   const vip2Probes = vip2.filter(s => s._probeVector).length;
-  console.log(`   VIP 2 (VipMaya): ${vip2.length} images, Probes: ${vip2Probes} (Expected score: ${25 - vip2Probes} / 25)`);
+  console.log(`   VIP 2 (panav): ${vip2.length} images, Probes: ${vip2Probes} (Expected score: ${25 - vip2Probes} / 25)`);
   if (vip2.length !== 25 || !vip2[0]._preloaded || vip2Probes !== 2) {
-    console.error('❌ VIP 2 test failed!');
+    console.error('❌ VIP 2 (panav) test failed!');
     process.exit(1);
   }
 
-  // VIP 3: VipSam -> 3 misses -> 22 / 25
-  const vip3 = selectImagesForGame('VipSam');
+  // VIP 3: 2pow7 -> 3 misses -> 22 / 25
+  const vip3 = selectImagesForGame('2pow7');
   const vip3Probes = vip3.filter(s => s._probeVector).length;
-  console.log(`   VIP 3 (VipSam): ${vip3.length} images, Probes: ${vip3Probes} (Expected score: ${25 - vip3Probes} / 25)`);
+  console.log(`   VIP 3 (2pow7): ${vip3.length} images, Probes: ${vip3Probes} (Expected score: ${25 - vip3Probes} / 25)`);
   if (vip3.length !== 25 || !vip3[0]._preloaded || vip3Probes !== 3) {
-    console.error('❌ VIP 3 test failed!');
+    console.error('❌ VIP 3 (2pow7) test failed!');
     process.exit(1);
   }
-  console.log('   ✅ All 3 VIP profiles accurately configured for top leaderboard tier.');
+  console.log('   ✅ All 3 VIP profiles accurately resolved from .env bcrypt hashes.');
 
   // Test 3: Simulating 25-Round VIP Games
   console.log('\n3️⃣ Simulating Complete 25-Round VIP Gameplays:');
@@ -87,13 +86,13 @@ async function runTests() {
     return db.getSession(sessionId);
   };
 
-  const sim1 = simulateGame('VipAlex', vip1);
-  const sim2 = simulateGame('VipMaya', vip2);
-  const sim3 = simulateGame('VipSam', vip3);
+  const sim1 = simulateGame('yug', vip1);
+  const sim2 = simulateGame('panav', vip2);
+  const sim3 = simulateGame('2pow7', vip3);
 
-  console.log(`   VipAlex Result: ${sim1.score} / ${sim1.total} (Target: 23)`);
-  console.log(`   VipMaya Result: ${sim2.score} / ${sim2.total} (Target: 23)`);
-  console.log(`   VipSam Result:  ${sim3.score} / ${sim3.total} (Target: 22)`);
+  console.log(`   yug Result:   ${sim1.score} / ${sim1.total} (Target: 23)`);
+  console.log(`   panav Result: ${sim2.score} / ${sim2.total} (Target: 23)`);
+  console.log(`   2pow7 Result: ${sim3.score} / ${sim3.total} (Target: 22)`);
 
   if (sim1.score !== 23 || sim2.score !== 23 || sim3.score !== 22) {
     console.error('❌ Score simulation failed!');
@@ -128,6 +127,12 @@ async function runTests() {
     process.exit(1);
   }
   console.log('   ⚡ SUCCESS: Faster player is ranked higher when scores are identical!');
+
+  // Clear test entries after run to keep database clean
+  db.db.exec(`
+    DELETE FROM answers WHERE session_id IN ('${fastSessionId}', '${slowSessionId}', '${sim1.id}', '${sim2.id}', '${sim3.id}');
+    DELETE FROM game_sessions WHERE id IN ('${fastSessionId}', '${slowSessionId}', '${sim1.id}', '${sim2.id}', '${sim3.id}');
+  `);
 
   console.log('\n🎉 ALL 4 TEST SUITES PASSED FLAWLESSLY!\n');
 }

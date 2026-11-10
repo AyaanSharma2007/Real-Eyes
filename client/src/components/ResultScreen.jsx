@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { RotateCcw, Trophy, Check, X, Clock, Award } from 'lucide-react';
+import { RotateCcw, Check, X, Clock, Award } from 'lucide-react';
 import api from '../api';
 
 const TOTAL_ROUNDS = 25;
@@ -189,14 +189,6 @@ export default function ResultScreen() {
             <RotateCcw size={18} />
             Play Again
           </button>
-
-          <Link
-            to="/leaderboard"
-            className="w-full py-3 px-6 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-base rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
-          >
-            <Trophy size={18} className="text-amber-500" />
-            View Leaderboard
-          </Link>
         </div>
       </motion.div>
     </div>

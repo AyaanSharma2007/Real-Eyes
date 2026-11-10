@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, ArrowRight, ShieldCheck, Sparkles, Image as ImageIcon, BookOpen } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Sparkles, Image as ImageIcon, BookOpen } from 'lucide-react';
 import api from '../api';
 import RulebookModal from './RulebookModal';
 
@@ -126,17 +126,6 @@ export default function StartScreen() {
               <ArrowRight size={18} />
             </motion.button>
           </form>
-
-          {/* Leaderboard CTA */}
-          <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-            <Link
-              to="/leaderboard"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-cyan-700 transition-colors"
-            >
-              <Trophy size={16} className="text-amber-500" />
-              View Global Leaderboard
-            </Link>
-          </div>
         </div>
 
         {/* Game Rules / Badges */}
