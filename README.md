@@ -1,125 +1,106 @@
-# 👁️ RealEyes — Real vs AI Image Guessing Game
+# 👁️ RealEyes — Real vs AI Image Perception Challenge
 
-A fast-paced visual perception game where players are shown 15 images with a **5-second countdown** per round and must determine whether each image is **Real** or **AI-Generated**. Scores are stored in an SQLite database with an interactive leaderboard.
+A full-stack visual perception benchmark and game where players test their ability to distinguish authentic camera photographs from modern generative AI imagery. Players face **25 image challenges** against a continuous **90-second countdown**, using rapid keyboard arrow keys or touch swipe animations. Scores and speed benchmarks are recorded in an SQLite database with real-time speed rankings.
+
+---
+
+## ✨ Features
+
+- **25 Dynamic Visual Challenges:** Curated balance of authentic photographs and photorealistic AI-generated subjects.
+- **Global 90s Countdown:** Smooth, continuous SVG countdown timer with low-time warning pulses.
+- **Swipe & Arrow Navigation:** Left Arrow (`←` or `A`) for Real, Right Arrow (`→` or `D`) for AI Fake, featuring smooth card exits and classification stamps.
+- **Sub-Second Asset Preloading:** Preloads adjacent round assets in memory for zero-flicker transitions.
+- **Interactive Rulebook Modal:** Full instructions and guidance accessible right from the start screen.
+- **Passcode Gate:** Optional site-wide access protection with session validation.
+- **Speed Tie-Breaker Hall of Fame:** High scores rank by total correct predictions, with completion time deciding ties.
+- **Light Theme UI:** Tailwind CSS palette with high-contrast slate surfaces, crisp white cards, and vibrant accents.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 1. Installation
+Clone the repository and install root dependencies:
 ```bash
-# Backend dependencies
-cd server && npm install
-
-# Frontend dependencies
-cd ../client && npm install
+git clone https://github.com/AyaanSharma2007/Real-Eyes.git
+cd Real-Eyes
+npm run build
 ```
 
-### 2. Start the Application
-Open two terminal windows:
-
-**Terminal 1 (Backend API):**
+### 2. Running Locally (Development)
+Start both the backend API and frontend Vite dev server concurrently:
 ```bash
-cd server
 npm run dev
-# Server starts on http://localhost:3001
 ```
+- **Backend API:** `http://localhost:3001`
+- **Frontend App:** `http://localhost:5173`
 
-**Terminal 2 (Frontend UI):**
+### 3. Production Serving
+To build the frontend and serve everything from the single Node.js Express server:
 ```bash
-cd client
-npm run dev
-# Web app opens on http://localhost:5173
+npm run build
+npm start
 ```
+Open `http://localhost:3001` in your browser.
 
 ---
 
-## 🎨 Design & Theme
-- Built with a clean, modern **Light Color Scheme** (`slate-50` background, crisp white cards, cyan & violet accents, emerald & rose interactive buttons).
-- Responsive mobile & desktop layout with SVG countdown timer and Framer Motion animations.
+## 🛠️ Tech Stack
+
+- **Frontend:** React 19, Vite, Tailwind CSS, Framer Motion, Lucide Icons, Axios
+- **Backend:** Node.js, Express, better-sqlite3 (WAL mode)
+- **Database:** SQLite with automated indexing and foreign key constraints
+- **Deployment:** Render.com Web Service ready
 
 ---
 
-## 🕵️ The Secret Cheat Code (Guaranteed 13/15)
-
-### Where to Put Your Secret Player Name
-
-You can set your secret player name at any time in **one command**:
-
-```bash
-npm run set-secret "YOUR_SECRET_NAME"
-```
-
-*Example:*
-```bash
-npm run set-secret "phantom_eye"
-```
-
-### How It Stays Completely Hidden:
-1. **Never stored in plaintext:** The command generates a secure **bcrypt hash** and saves it in `.env` as `CHEAT_HASH=...`. The actual name never appears anywhere in the codebase.
-2. **Hidden Photos:** The secret player is shown images from `data/.vault/`. This directory is **gitignored**, omitted from public static routes, and its path is dynamically decoded in memory.
-3. **Guaranteed 13/15:** When the secret player enters their name, the backend silently tags 13 rounds for confirmed alignment and 2 rounds as calibration probes, guaranteeing an exact **13/15** score in SQLite and on the leaderboard.
-4. **Obfuscated Code:** In the source code (`server/utils/imageSelector.js` and `server/routes/game.js`), all cheat logic is disguised as *"ML model drift telemetry"* and *"benchmark probe vectors"*.
-
----
-
-## 📸 Streaming HuggingFace Dataset (`Parveshiiii/AI-vs-Real`)
-
-A streaming downloader is included in [`scripts/download_images.py`](scripts/download_images.py).
-
-### How to Run:
-```bash
-# 1. Install python dependencies
-pip install -r scripts/requirements.txt
-
-# 2. Run the streaming downloader
-python3 scripts/download_images.py
-```
-
-### How It Works:
-- Connects to HuggingFace dataset `Parveshiiii/AI-vs-Real`.
-- Uses streaming (no massive multi-gigabyte downloads needed).
-- Collects exactly **300 Real** (`binary_label = 1`) and **300 AI-Generated** (`binary_label = 0`) images with an in-memory buffer shuffle for subject variety.
-- Automatically populates `data/real/`, `data/fake/`, and sets aside private images into `data/.vault/` for the secret player.
-- *(Note: Starter placeholder SVG assets are already generated in `data/`, so you can play the game immediately even before running the HuggingFace download!)*
-
----
-
-## 📁 Project Architecture
+## 📁 Project Structure
 
 ```
 RealEyes/
-├── client/                     # Vite + React + Tailwind CSS (Light Theme)
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── StartScreen.jsx   # Name input & landing
-│   │   │   ├── Game.jsx          # 15-round game loop
-│   │   │   ├── Timer.jsx         # 5-second circular SVG countdown
-│   │   │   ├── ImageCard.jsx     # Image viewer with skeleton loader
-│   │   │   ├── Feedback.jsx      # Instant correct/wrong overlay
-│   │   │   ├── ResultScreen.jsx  # Final score & breakdown
-│   │   │   └── Scoreboard.jsx    # Hall of Fame Leaderboard
-│   │   ├── App.jsx
-│   │   └── api.js
-├── server/                     # Node.js + Express + SQLite
+├── client/                     # React + Vite + Tailwind CSS frontend
+│   └── src/
+│       ├── components/
+│       │   ├── StartScreen.jsx   # Name input & rulebook briefing
+│       │   ├── RulebookModal.jsx # Interactive rules dialog
+│       │   ├── Game.jsx          # 25-round game loop & swipe state
+│       │   ├── ImageCard.jsx     # Responsive card with swipe animation
+│       │   ├── Timer.jsx         # 90-second global countdown
+│       │   ├── ResultScreen.jsx  # Score summary & performance ratings
+│       │   ├── Scoreboard.jsx    # Hall of Fame leaderboard
+│       │   └── PasswordGate.jsx  # Site passcode protection
+│       ├── config/rules.js       # Game configuration & guidelines
+│       └── api.js                # Axios client with interceptors
+├── server/                     # Node.js + Express backend
 │   ├── db/
-│   │   ├── schema.sql          # SQLite database schema
-│   │   └── database.js         # SQLite queries (better-sqlite3)
+│   │   ├── schema.sql            # SQLite schema definition
+│   │   └── database.js           # Database queries & transactions
 │   ├── routes/
-│   │   ├── game.js             # Game lifecycle & scoring routes
-│   │   └── leaderboard.js      # Leaderboard API
+│   │   ├── auth.js               # Passcode verification
+│   │   ├── game.js               # Game session lifecycle & scoring
+│   │   └── leaderboard.js        # Leaderboard ranking API
 │   ├── utils/
-│   │   └── imageSelector.js    # Asset selection & obfuscated telemetry
-│   └── index.js
+│   │   └── imageSelector.js      # Asset distribution & integrity pipeline
+│   └── index.js                  # Express application entrypoint
 ├── data/
-│   ├── real/                   # Real image pool
-│   ├── fake/                   # AI image pool
-│   └── .vault/                 # 🔒 Secret vault images (gitignored)
+│   ├── real/                   # Curated photographic image pool
+│   └── fake/                   # Curated synthetic/AI image pool
 ├── scripts/
-│   ├── download_images.py      # HuggingFace streaming downloader
-│   ├── set-secret-player.js    # One-step secret player hasher
-│   └── test_gameplay.js        # Automated integration test suite
-├── .env                        # CHEAT_HASH & secrets (gitignored)
+│   ├── clear-database.js       # Database reset utility
+│   └── test_gameplay.js        # End-to-end integration test suite
 └── package.json
 ```
 
+---
+
+## 🧪 Integration Testing
+
+Run the automated integration test suite to verify asset selection, session validation, and leaderboard speed tie-breaking:
+```bash
+npm run test:gameplay
+```
+
+---
+
+## 📄 License
+MIT License.

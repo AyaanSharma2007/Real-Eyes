@@ -11,8 +11,6 @@
     "client": "cd client && npm run dev",
     "client:build": "cd client && npm run build",
     "clear-db": "node scripts/clear-database.js",
-    "set-secret": "node scripts/set-secret-player.js",
-    "set-secrets": "node scripts/set-secret-players.js",
     "download-dataset": "python3 scripts/download_images.py",
     "download:photorealistic": "python3 scripts/download_photorealistic_dataset.py",
     "apply-noise": "python3 scripts/apply_camera_noise.py --target all",

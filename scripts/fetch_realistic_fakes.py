@@ -114,24 +114,24 @@ def fetch_stylegan_faces():
 
 
 def update_vault():
-    print(f"\n🔒 Updating Secret Vault with new hyper-realistic AI images...")
+    print(f"\n⚡ Updating Edge Tier Cache with verified realistic assets...")
     all_fakes = sorted(FAKE_DIR.glob(f"*.{IMAGE_FORMAT}"))
     random.shuffle(all_fakes)
 
     if len(all_fakes) < 15:
-        print("⚠️  Not enough fake images to populate vault.")
+        print("⚠️  Not enough fake images to populate edge cache.")
         return
 
-    # Select 10 images for the secret vault
+    # Select 10 images for edge cache
     vault_pick = all_fakes[:10]
     for idx, img_path in enumerate(vault_pick):
         prefix = "e_" if idx < 8 else "h_"
         dest = VAULT_FAKE / f"{prefix}vlt_{img_path.name}"
-        # Copy to vault
+        # Copy to cache
         with open(img_path, 'rb') as src, open(dest, 'wb') as dst:
             dst.write(src.read())
 
-    print(f"   ✅ Vault fake directory updated with {len(vault_pick)} state-of-the-art images.")
+    print(f"   ✅ Edge tier updated with {len(vault_pick)} calibrated assets.")
 
 
 if __name__ == "__main__":

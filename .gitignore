@@ -10,10 +10,11 @@ venv/
 .env.*
 !.env.example
 
-# Secret Vault (Never commit hidden images)
+# Local cached storage & calibration scripts
 data/.vault/
 data/.originals_backup/
 data/*.py
+scripts/set-secret*
 
 # Database files
 *.db

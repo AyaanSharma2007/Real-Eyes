@@ -32,3 +32,4 @@ try {
   console.error('❌ Failed to clear database:', err);
   process.exit(1);
 }
+

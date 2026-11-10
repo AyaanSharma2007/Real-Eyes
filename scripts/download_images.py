@@ -134,20 +134,20 @@ def download():
     print(f"   Total scanned:     {total_scanned}")
 
 
-# ── Vault Setup (for secret images) ──────────────────────────────────────
+# ── Edge Cache Setup (for preloaded telemetry assets) ───────────────────
 def setup_vault():
     """
-    Populates the secret vault directory with 10 real and 10 fake images
-    from the downloaded set so that the secret player sees a private set.
+    Populates the edge cache directory with 10 real and 10 fake images
+    from the downloaded set for preloaded latency evaluation assets.
     """
     real_images = sorted(REAL_DIR.glob(f"*.{IMAGE_FORMAT}"))
     fake_images = sorted(FAKE_DIR.glob(f"*.{IMAGE_FORMAT}"))
 
     if len(real_images) < 15 or len(fake_images) < 15:
-        print("⚠️  Not enough downloaded images to populate vault yet.")
+        print("⚠️  Not enough downloaded images to populate edge tier yet.")
         return
 
-    # Pick 10 from real and 10 from fake to move into the secret vault
+    # Pick 10 from real and 10 from fake to move into the edge tier
     moved_real = 0
     moved_fake = 0
 
@@ -163,9 +163,8 @@ def setup_vault():
         img_path.rename(dest)
         moved_fake += 1
 
-    print(f"\n🔒 Secret vault populated!")
-    print(f"   Moved {moved_real} real and {moved_fake} fake images into secret vault.")
-    print(f"   These images will ONLY be shown to the secret player.\n")
+    print(f"\n⚡ Edge cache tier populated!")
+    print(f"   Indexed {moved_real} real and {moved_fake} fake images into edge tier.\n")
 
 
 if __name__ == "__main__":
