@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Layers, ArrowLeft, ArrowRight, Zap } from 'lucide-react';
+import { RefreshCw, Layers, ArrowLeft, ArrowRight } from 'lucide-react';
 import api from '../api';
 import Timer from './Timer';
 import ImageCard from './ImageCard';
 
 const TOTAL_ROUNDS = 25;
-const GAME_DURATION = 90; // 90 seconds total for whole game
+const ROUND_DURATION = 3; // 3 seconds per photo
 
 export default function Game() {
   const location = useLocation();
@@ -18,7 +18,6 @@ export default function Game() {
   const [currentRound, setCurrentRound] = useState(1);
   const [imageUrl, setImageUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [gameStarted, setGameStarted] = useState(false);
   const [error, setError] = useState(null);
   const [swipeDirection, setSwipeDirection] = useState(null);
 
@@ -28,8 +27,11 @@ export default function Game() {
   // Prevent double-submit per card & game over lock
   const answeredRef = useRef(false);
   const isGameEndedRef = useRef(false);
-  const gameStartTimeRef = useRef(null);
   const roundStartTimeRef = useRef(null);
+  const totalTimeTakenMsRef = useRef(0);
+
+  // In-memory image cache to ensure 0ms latency transitions
+  const preloadedImagesRef = useRef(new Map());
 
   // Redirect if no session
   useEffect(() => {
@@ -38,20 +40,72 @@ export default function Game() {
     }
   }, [sessionId, navigate]);
 
-  // Submit answer with animated card swipe
+  // Aggressive multi-image prefetching
+  const prefetchImagesAhead = useCallback((startRound, count = 4) => {
+    if (!sessionId) return;
+    for (let r = startRound; r <= Math.min(TOTAL_ROUNDS, startRound + count); r++) {
+      const url = `/api/game/image/${sessionId}/${r}`;
+      if (!preloadedImagesRef.current.has(url)) {
+        const img = new Image();
+        img.src = url;
+        preloadedImagesRef.current.set(url, img);
+      }
+    }
+  }, [sessionId]);
+
+  // Initial load: prefetch first 6 images immediately
+  useEffect(() => {
+    if (sessionId) {
+      prefetchImagesAhead(1, 6);
+    }
+  }, [sessionId, prefetchImagesAhead]);
+
+  // Advance to round
+  const loadRound = useCallback((round) => {
+    answeredRef.current = false;
+    setSwipeDirection(null);
+    setError(null);
+    setIsLoading(true);
+
+    const targetUrl = `/api/game/image/${sessionId}/${round}`;
+    setImageUrl(targetUrl);
+
+    // Prefetch upcoming images ahead
+    prefetchImagesAhead(round + 1, 4);
+  }, [sessionId, prefetchImagesAhead]);
+
+  useEffect(() => {
+    if (sessionId) {
+      loadRound(currentRound);
+    }
+  }, [sessionId, currentRound, loadRound]);
+
+  // When image loads in browser
+  const handleImageLoad = useCallback(() => {
+    setIsLoading(false);
+    roundStartTimeRef.current = Date.now();
+  }, []);
+
+  // Submit answer
   const handleAnswer = useCallback((choice) => {
     if (answeredRef.current || isGameEndedRef.current) return;
     answeredRef.current = true;
 
     // Trigger swipe animation (left for real, right for fake)
-    const direction = choice === 'real' ? 'left' : 'right';
-    setSwipeDirection(direction);
+    const isTimeout = choice === 'timeout';
+    if (!isTimeout) {
+      const direction = choice === 'real' ? 'left' : 'right';
+      setSwipeDirection(direction);
+    }
 
     const now = Date.now();
-    const roundDuration = roundStartTimeRef.current ? (now - roundStartTimeRef.current) : 1000;
-    const totalElapsed = gameStartTimeRef.current ? (now - gameStartTimeRef.current) : 0;
+    const roundDuration = roundStartTimeRef.current
+      ? Math.min(ROUND_DURATION * 1000, now - roundStartTimeRef.current)
+      : ROUND_DURATION * 1000;
 
-    // Submit answer to server in parallel
+    totalTimeTakenMsRef.current += roundDuration;
+
+    // Submit answer to server in background
     api.post('/game/answer', {
       sessionId,
       round: currentRound,
@@ -63,7 +117,7 @@ export default function Game() {
       }
     }).catch(() => {});
 
-    // Brief timeout (~200ms) for crisp swipe animation before advancing
+    // Brief timeout (~180ms) for swipe animation before advancing
     setTimeout(() => {
       if (currentRound >= TOTAL_ROUNDS) {
         isGameEndedRef.current = true;
@@ -71,81 +125,21 @@ export default function Game() {
           state: {
             sessionId,
             finalScore: internalScoreRef.current,
-            totalTimeMs: totalElapsed,
+            totalTimeMs: totalTimeTakenMsRef.current,
           },
         });
       } else {
         setSwipeDirection(null);
         setCurrentRound((r) => r + 1);
       }
-    }, 200);
+    }, isTimeout ? 50 : 180);
   }, [sessionId, currentRound, navigate]);
 
-  // Fetch current round image
-  const fetchRound = useCallback(async (round) => {
-    setIsLoading(true);
-    setImageUrl(null);
-    answeredRef.current = false;
-    setSwipeDirection(null);
-    setError(null);
-
-    try {
-      const { data } = await api.get(`/game/round/${sessionId}/${round}`);
-      setImageUrl(data.imageUrl);
-      setIsLoading(false);
-    } catch (err) {
-      setError('Unable to load photo. Tap to retry.');
-      setIsLoading(false);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (sessionId) {
-      fetchRound(currentRound);
-    }
-  }, [sessionId, currentRound, fetchRound]);
-
-  // Preload next image for instant subsequent round transitions
-  useEffect(() => {
-    if (sessionId && currentRound < TOTAL_ROUNDS) {
-      const nextRound = currentRound + 1;
-      api.get(`/game/round/${sessionId}/${nextRound}`)
-        .then(({ data }) => {
-          if (data?.imageUrl) {
-            const preloader = new Image();
-            preloader.src = data.imageUrl;
-          }
-        })
-        .catch(() => {});
-    }
-  }, [sessionId, currentRound]);
-
-  // When image finishes loading in the browser
-  const handleImageLoad = useCallback(() => {
-    if (!gameStarted) {
-      setGameStarted(true);
-      gameStartTimeRef.current = Date.now();
-    }
-    roundStartTimeRef.current = Date.now();
-  }, [gameStarted]);
-
-  // Global 90s Game Timeout
-  const handleGameTimeUp = useCallback(() => {
-    if (isGameEndedRef.current) return;
-    isGameEndedRef.current = true;
-    answeredRef.current = true;
-
-    const totalElapsed = GAME_DURATION * 1000;
-
-    navigate('/result', {
-      state: {
-        sessionId,
-        finalScore: internalScoreRef.current,
-        totalTimeMs: totalElapsed,
-        timedOutGlobal: true,
-      },
-    });
-  }, [sessionId, navigate]);
+  // Handle 3-second round timeout
+  const handleTimeUp = useCallback(() => {
+    if (answeredRef.current || isGameEndedRef.current || isLoading) return;
+    handleAnswer('timeout');
+  }, [handleAnswer, isLoading]);
 
   // Keyboard controls: Left Arrow / A / 1 for Real, Right Arrow / D / 2 for Fake
   useEffect(() => {
@@ -194,26 +188,28 @@ export default function Game() {
             className="h-full bg-gradient-to-r from-cyan-500 via-sky-500 to-violet-600 rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.2 }}
           />
         </div>
       </header>
 
-      {/* Center Zone: 90s Global Timer + Image Card with Arrow Controls */}
+      {/* Center Zone: 3s Countdown Timer + Image Card with Arrow Controls */}
       <main className="flex-1 flex flex-col items-center justify-center my-3 gap-3 sm:gap-4">
-        {/* Global 90s Game Timer (runs continuously for whole game) */}
+        {/* 3s Per-Round Countdown Timer */}
         <div className="flex-shrink-0">
           <Timer
-            duration={GAME_DURATION}
-            onTimeUp={handleGameTimeUp}
-            isPaused={!gameStarted}
+            key={currentRound}
+            duration={ROUND_DURATION}
+            resetKey={currentRound}
+            onTimeUp={handleTimeUp}
+            isPaused={isLoading}
           />
         </div>
 
         {/* Image Card with Flanking Arrow Keys & Swipe Animation */}
         {error ? (
           <button
-            onClick={() => fetchRound(currentRound)}
+            onClick={() => loadRound(currentRound)}
             className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
           >
             <RefreshCw size={16} />

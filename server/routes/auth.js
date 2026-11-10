@@ -49,4 +49,38 @@ router.post('/verify', (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/reset-db
+ * Clear all game sessions, scores, and players (protected by site passcode)
+ */
+router.post('/reset-db', (req, res) => {
+  try {
+    const sitePassword = getSitePassword();
+    const { password } = req.body || {};
+
+    if (sitePassword && (!password || password.trim() !== sitePassword)) {
+      return res.status(401).json({ error: 'Unauthorized. Incorrect passcode.' });
+    }
+
+    const db = require('../db/database');
+    db.db.exec(`
+      DELETE FROM answers;
+      DELETE FROM game_sessions;
+      DELETE FROM players;
+      DELETE FROM session_cache;
+    `);
+
+    try {
+      db.db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('answers', 'players');`);
+    } catch (_) {}
+
+    db.db.exec('VACUUM;');
+
+    return res.json({ success: true, message: 'Database successfully cleared.' });
+  } catch (err) {
+    console.error('Error clearing database:', err);
+    return res.status(500).json({ error: 'Failed to reset database.' });
+  }
+});
+
 module.exports = router;

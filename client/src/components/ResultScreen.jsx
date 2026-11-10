@@ -108,14 +108,8 @@ export default function ResultScreen() {
               <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-full">
                 <Clock size={13} className="text-cyan-600" />
                 <span>
-                  Total Time: {(((result?.totalTimeMs ?? location.state?.totalTimeMs) || 0) / 1000).toFixed(1)}s / 90s
+                  Total Time: {(((result?.totalTimeMs ?? location.state?.totalTimeMs) || 0) / 1000).toFixed(1)}s
                 </span>
-              </div>
-            )}
-
-            {location.state?.timedOutGlobal && (
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-full">
-                <span>⏰ 90s Time Expired</span>
               </div>
             )}
 

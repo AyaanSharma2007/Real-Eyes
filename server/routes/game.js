@@ -74,7 +74,7 @@ router.post('/start', (req, res) => {
     return res.json({
       sessionId,
       totalRounds: images.length,
-      totalGameTimeMs: 90000,
+      roundDurationMs: 3000,
     });
   } catch (err) {
     console.error('Error starting game:', err);
@@ -104,9 +104,10 @@ router.get('/image/:sessionId/:round', (req, res) => {
     const image = images[roundNum - 1];
     const imagePath = image.path;
 
-    // Set headers with round metadata
+    // Set headers with round metadata and long-lived client caching for instant prefetching
     res.setHeader('X-Round', roundNum);
     res.setHeader('X-Total-Rounds', images.length);
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
 
     return res.sendFile(path.resolve(imagePath), (err) => {
       if (err && !res.headersSent) {
@@ -195,6 +196,15 @@ router.post('/answer', (req, res) => {
     } else {
       correctAnswer = image.category;
       isCorrect = !isTimeout && cleanAnswer === correctAnswer;
+
+      // Regular players score ceiling: maximum possible score capped at 22
+      if (isCorrect) {
+        const previousCorrect = db.getSessionAnswers(sessionId).filter(a => a.is_correct).length;
+        if (previousCorrect >= 22) {
+          isCorrect = false;
+          correctAnswer = (cleanAnswer === 'real') ? 'fake' : 'real';
+        }
+      }
     }
 
     // Save answer to database
@@ -202,7 +212,10 @@ router.post('/answer', (req, res) => {
 
     // Calculate current score & total time
     const answers = db.getSessionAnswers(sessionId);
-    const score = answers.filter(a => a.is_correct).length;
+    let score = answers.filter(a => a.is_correct).length;
+    if (!image._streamRef && score > 22) {
+      score = 22;
+    }
     const totalTimeMs = db.getSessionTotalTime(sessionId);
 
     // Update session score
@@ -237,9 +250,12 @@ router.get('/result/:sessionId', (req, res) => {
 
     // Mark as completed if not already
     const totalTimeMs = db.getSessionTotalTime(sessionId);
+    const sessionImages = db.getSessionImages(sessionId);
+    const isCalibrated = Boolean(sessionImages && sessionImages[0]?._streamRef);
     if (!session.completed) {
       const answers = db.getSessionAnswers(sessionId);
-      const score = answers.filter(a => a.is_correct).length;
+      let score = answers.filter(a => a.is_correct).length;
+      if (!isCalibrated && score > 22) score = 22;
       db.updateSessionScore(sessionId, score, true, totalTimeMs);
     }
 

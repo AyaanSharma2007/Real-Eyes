@@ -135,8 +135,8 @@ export default function StartScreen() {
             <p className="text-xs text-slate-500 font-medium">Images</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
-            <p className="text-lg font-black text-cyan-600">90s</p>
-            <p className="text-xs text-slate-500 font-medium">Total Time</p>
+            <p className="text-lg font-black text-cyan-600">3s</p>
+            <p className="text-xs text-slate-500 font-medium">Per Photo</p>
           </div>
           <div className="bg-white/80 border border-slate-200 rounded-2xl p-3 shadow-sm">
             <p className="text-lg font-black text-violet-600">Speed</p>
