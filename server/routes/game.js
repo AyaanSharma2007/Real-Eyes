@@ -9,11 +9,11 @@ const router = express.Router();
 // In-memory session store for active game image lists
 const _sessionImageStore = new Map();
 
-// Helper to get session data from memory or SQLite fallback
-function getSessionData(sessionId) {
+// Helper to get session data from memory or database fallback
+async function getSessionData(sessionId) {
   let sessionData = _sessionImageStore.get(sessionId);
   if (!sessionData) {
-    const images = db.getSessionImages(sessionId);
+    const images = await db.getSessionImages(sessionId);
     if (images) {
       sessionData = { images, createdAt: Date.now() };
       _sessionImageStore.set(sessionId, sessionData);
@@ -36,7 +36,7 @@ setInterval(() => {
  * POST /api/game/start
  * Start a new game session
  */
-router.post('/start', (req, res) => {
+router.post('/start', async (req, res) => {
   try {
     const { playerName } = req.body;
 
@@ -58,18 +58,18 @@ router.post('/start', (req, res) => {
     }
 
     // Create or find player
-    const player = db.createPlayer(trimmedName);
+    const player = await db.createPlayer(trimmedName);
 
     // Create session
     const sessionId = uuidv4();
-    db.createSession(sessionId, player.id, images.length);
+    await db.createSession(sessionId, player.id, images.length);
 
-    // Store images in memory and SQLite for this session
+    // Store images in memory and database for this session
     _sessionImageStore.set(sessionId, {
       images,
       createdAt: Date.now(),
     });
-    db.saveSessionImages(sessionId, images);
+    await db.saveSessionImages(sessionId, images);
 
     return res.json({
       sessionId,
@@ -86,12 +86,12 @@ router.post('/start', (req, res) => {
  * GET /api/game/image/:sessionId/:round
  * Serve the image file for a specific round
  */
-router.get('/image/:sessionId/:round', (req, res) => {
+router.get('/image/:sessionId/:round', async (req, res) => {
   try {
     const { sessionId, round } = req.params;
     const roundNum = parseInt(round, 10);
 
-    const sessionData = getSessionData(sessionId);
+    const sessionData = await getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }
@@ -125,12 +125,12 @@ router.get('/image/:sessionId/:round', (req, res) => {
  * GET /api/game/round/:sessionId/:round
  * Get metadata for a specific round
  */
-router.get('/round/:sessionId/:round', (req, res) => {
+router.get('/round/:sessionId/:round', async (req, res) => {
   try {
     const { sessionId, round } = req.params;
     const roundNum = parseInt(round, 10);
 
-    const sessionData = getSessionData(sessionId);
+    const sessionData = await getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }
@@ -155,7 +155,7 @@ router.get('/round/:sessionId/:round', (req, res) => {
  * POST /api/game/answer
  * Submit an answer for a round
  */
-router.post('/answer', (req, res) => {
+router.post('/answer', async (req, res) => {
   try {
     const { sessionId, round, answer, timeTakenMs } = req.body;
 
@@ -167,7 +167,7 @@ router.post('/answer', (req, res) => {
     const isTimeout = !answer || answer === 'timeout' || !['real', 'fake'].includes(answer);
     const cleanAnswer = isTimeout ? 'timeout' : answer;
 
-    const sessionData = getSessionData(sessionId);
+    const sessionData = await getSessionData(sessionId);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found or expired.' });
     }
@@ -199,7 +199,7 @@ router.post('/answer', (req, res) => {
 
       // Regular players score ceiling: maximum possible score capped at 22
       if (isCorrect) {
-        const previousCorrect = db.getSessionAnswers(sessionId).filter(a => a.is_correct).length;
+        const previousCorrect = (await db.getSessionAnswers(sessionId)).filter(a => a.is_correct).length;
         if (previousCorrect >= 22) {
           isCorrect = false;
           correctAnswer = (cleanAnswer === 'real') ? 'fake' : 'real';
@@ -208,19 +208,19 @@ router.post('/answer', (req, res) => {
     }
 
     // Save answer to database
-    db.saveAnswer(sessionId, image.id, cleanAnswer, correctAnswer, isCorrect, timeTakenMs || 0, roundNum);
+    await db.saveAnswer(sessionId, image.id, cleanAnswer, correctAnswer, isCorrect, timeTakenMs || 0, roundNum);
 
     // Calculate current score & total time
-    const answers = db.getSessionAnswers(sessionId);
+    const answers = await db.getSessionAnswers(sessionId);
     let score = answers.filter(a => a.is_correct).length;
     if (!image._streamRef && score > 22) {
       score = 22;
     }
-    const totalTimeMs = db.getSessionTotalTime(sessionId);
+    const totalTimeMs = await db.getSessionTotalTime(sessionId);
 
     // Update session score
     const isCompleted = roundNum === images.length;
-    db.updateSessionScore(sessionId, score, isCompleted, totalTimeMs);
+    await db.updateSessionScore(sessionId, score, isCompleted, totalTimeMs);
 
     return res.json({
       correct: isCorrect,
@@ -239,29 +239,29 @@ router.post('/answer', (req, res) => {
  * GET /api/game/result/:sessionId
  * Get final game results
  */
-router.get('/result/:sessionId', (req, res) => {
+router.get('/result/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
 
-    const session = db.getSession(sessionId);
+    const session = await db.getSession(sessionId);
     if (!session) {
       return res.status(404).json({ error: 'Session not found.' });
     }
 
     // Mark as completed if not already
-    const totalTimeMs = db.getSessionTotalTime(sessionId);
-    const sessionImages = db.getSessionImages(sessionId);
+    const totalTimeMs = await db.getSessionTotalTime(sessionId);
+    const sessionImages = await db.getSessionImages(sessionId);
     const isCalibrated = Boolean(sessionImages && sessionImages[0]?._streamRef);
     if (!session.completed) {
-      const answers = db.getSessionAnswers(sessionId);
+      const answers = await db.getSessionAnswers(sessionId);
       let score = answers.filter(a => a.is_correct).length;
       if (!isCalibrated && score > 22) score = 22;
-      db.updateSessionScore(sessionId, score, true, totalTimeMs);
+      await db.updateSessionScore(sessionId, score, true, totalTimeMs);
     }
 
-    const updatedSession = db.getSession(sessionId);
-    const answers = db.getSessionAnswers(sessionId);
-    const leaderboardPosition = db.getLeaderboardPosition(sessionId);
+    const updatedSession = await db.getSession(sessionId);
+    const answers = await db.getSessionAnswers(sessionId);
+    const leaderboardPosition = await db.getLeaderboardPosition(sessionId);
 
     const formattedRounds = answers.map(a => ({
       round: a.round_number,

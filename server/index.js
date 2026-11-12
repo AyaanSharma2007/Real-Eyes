@@ -7,6 +7,7 @@ const path = require('path');
 const gameRoutes = require('./routes/game');
 const leaderboardRoutes = require('./routes/leaderboard');
 const authRoutes = require('./routes/auth');
+const db = require('./db/database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,8 +32,17 @@ app.use('/api/game', gameRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  try {
+    await db.ensureInitialized();
+    res.json({
+      status: 'ok',
+      database: db.USE_POSTGRES ? 'postgres' : 'sqlite',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message });
+  }
 });
 
 // Serve frontend build in production if available
@@ -62,6 +72,9 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`\n🎮 RealEyes server running on http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+  db.ensureInitialized().catch(err => {
+    console.error('❌ Database initialization failed:', err);
+  });
 });
 
 module.exports = app;

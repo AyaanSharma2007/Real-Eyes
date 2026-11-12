@@ -55,10 +55,10 @@ async function runTests() {
 
   // Test 3: Simulating 25-Round Calibrated Gameplays
   console.log('\n3️⃣ Simulating Complete 25-Round Gameplays:');
-  const simulateGame = (username, selection) => {
-    const player = db.createPlayer(username + '_' + Date.now());
+  const simulateGame = async (username, selection) => {
+    const player = await db.createPlayer(username + '_' + Date.now());
     const sessionId = 'test-sim-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-    db.createSession(sessionId, player.id, 25);
+    await db.createSession(sessionId, player.id, 25);
 
     let correctCount = 0;
     for (let round = 1; round <= 25; round++) {
@@ -79,16 +79,16 @@ async function runTests() {
         isCorrect = playerAnswer === correctAnswer;
       }
       if (isCorrect) correctCount++;
-      db.saveAnswer(sessionId, img.id, playerAnswer, correctAnswer, isCorrect, 1000, round);
+      await db.saveAnswer(sessionId, img.id, playerAnswer, correctAnswer, isCorrect, 1000, round);
     }
-    const totalTimeMs = db.getSessionTotalTime(sessionId);
-    db.updateSessionScore(sessionId, correctCount, 1, totalTimeMs);
+    const totalTimeMs = await db.getSessionTotalTime(sessionId);
+    await db.updateSessionScore(sessionId, correctCount, 1, totalTimeMs);
     return db.getSession(sessionId);
   };
 
-  const sim1 = simulateGame('yug', profile1);
-  const sim2 = simulateGame('panav', profile2);
-  const sim3 = simulateGame('2pow7', profile3);
+  const sim1 = await simulateGame('yug', profile1);
+  const sim2 = await simulateGame('panav', profile2);
+  const sim3 = await simulateGame('2pow7', profile3);
 
   console.log(`   yug Result:   ${sim1.score} / ${sim1.total} (Target: 23)`);
   console.log(`   panav Result: ${sim2.score} / ${sim2.total} (Target: 23)`);
@@ -102,20 +102,20 @@ async function runTests() {
 
   // Test 4: Leaderboard Ranking by Total Time
   console.log('\n4️⃣ Testing Speed Tie-Breaker on Leaderboard:');
-  const fastPlayer = db.createPlayer('FastRunner_' + Date.now());
-  const slowPlayer = db.createPlayer('SlowRunner_' + Date.now());
+  const fastPlayer = await db.createPlayer('FastRunner_' + Date.now());
+  const slowPlayer = await db.createPlayer('SlowRunner_' + Date.now());
 
   const fastSessionId = 'fast-sess-' + Date.now();
   const slowSessionId = 'slow-sess-' + Date.now();
 
-  db.createSession(fastSessionId, fastPlayer.id, 25);
-  db.createSession(slowSessionId, slowPlayer.id, 25);
+  await db.createSession(fastSessionId, fastPlayer.id, 25);
+  await db.createSession(slowSessionId, slowPlayer.id, 25);
 
   // Both score 23, but Fast takes 20,000ms and Slow takes 50,000ms
-  db.updateSessionScore(fastSessionId, 23, 1, 20000);
-  db.updateSessionScore(slowSessionId, 23, 1, 50000);
+  await db.updateSessionScore(fastSessionId, 23, 1, 20000);
+  await db.updateSessionScore(slowSessionId, 23, 1, 50000);
 
-  const leaderboard = db.getLeaderboard(20);
+  const leaderboard = await db.getLeaderboard(20);
   const fastRank = leaderboard.findIndex(e => e.sessionId === fastSessionId);
   const slowRank = leaderboard.findIndex(e => e.sessionId === slowSessionId);
 
@@ -129,10 +129,8 @@ async function runTests() {
   console.log('   ⚡ SUCCESS: Faster player is ranked higher when scores are identical!');
 
   // Clear test entries after run to keep database clean
-  db.db.exec(`
-    DELETE FROM answers WHERE session_id IN ('${fastSessionId}', '${slowSessionId}', '${sim1.id}', '${sim2.id}', '${sim3.id}');
-    DELETE FROM game_sessions WHERE id IN ('${fastSessionId}', '${slowSessionId}', '${sim1.id}', '${sim2.id}', '${sim3.id}');
-  `);
+  await db.deleteSessions([fastSessionId, slowSessionId, sim1.id, sim2.id, sim3.id]);
+  await db.close();
 
   console.log('\n🎉 ALL 4 TEST SUITES PASSED FLAWLESSLY!\n');
 }
