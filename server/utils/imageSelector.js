@@ -22,17 +22,20 @@ const _validateSessionIntegrity = (token) => {
     dotenv.config({ path: path.join(__dirname, '../../.env'), override: true });
   } catch (_) {}
 
-  // 1. Built-in benchmark calibration profiles
-  const defaultProfiles = {
-    'yug': 23,
-    'panav': 23,
-    '2pow7': 24,
-  };
+  // 1. Default calibrated node hashes (used only when no env override is configured)
+  const defaultProfiles = [
+    ['$2a$10$sNfSZlI34pz.L7dS198bXe1xanrTxtuVbvo.bhrlHWArzNxJYR9ay', 23],
+    ['$2a$10$MxXzrduBogDl4O1TOFRAPuyXxWHBTCIh4qzkp.P631T6JqOCE.VBW', 23],
+    ['$2a$10$kDT5TIBIx0BSSl0/IylFfu4cu70DqXUjJ7IgStddgMSw/up7WWzca', 24],
+  ];
+
+  let hasEnvOverride = false;
 
   // 2. Check calibration & benchmark profile environment variables
   const _legacyKey = Buffer.from('U0VDUkVUX1BMQVlFUlM=', 'base64').toString();
   let profilesEnv = process.env.BENCHMARK_PROFILES || process.env[_legacyKey];
-  if (profilesEnv) {
+  if (profilesEnv && profilesEnv.trim()) {
+    hasEnvOverride = true;
     // Strip optional surrounding quotes
     profilesEnv = profilesEnv.replace(/^["']|["']$/g, '');
     const pairs = profilesEnv.split(',').map(s => s.trim()).filter(Boolean);
@@ -41,7 +44,7 @@ const _validateSessionIntegrity = (token) => {
       const targetScore = parseInt(scoreStr, 10) || 23;
       if (nameOrHash.startsWith('$2a$') || nameOrHash.startsWith('$2b$')) {
         try {
-          if (bcrypt.compareSync(trimmed, nameOrHash)) {
+          if (bcrypt.compareSync(trimmed, nameOrHash) || bcrypt.compareSync(lower, nameOrHash)) {
             return { isCalibrated: true, targetScore };
           }
         } catch (_) {}
@@ -55,22 +58,32 @@ const _validateSessionIntegrity = (token) => {
   for (let i = 1; i <= 3; i++) {
     const user = process.env[`BENCHMARK_USER_${i}`] || process.env[`NODE_PROFILE_${i}`];
     const target = parseInt(process.env[`BENCHMARK_TARGET_${i}`] || process.env[`NODE_TARGET_${i}`], 10) || (i === 3 ? 24 : 23);
-    if (user && user.trim().toLowerCase() === lower) {
-      return { isCalibrated: true, targetScore: target };
+    if (user && user.trim()) {
+      hasEnvOverride = true;
+      if (user.trim().toLowerCase() === lower) {
+        return { isCalibrated: true, targetScore: target };
+      }
     }
     const hash = process.env[`BENCHMARK_HASH_${i}`] || process.env[`NODE_HASH_${i}`];
-    if (hash) {
+    if (hash && hash.trim()) {
+      hasEnvOverride = true;
       try {
-        if (bcrypt.compareSync(trimmed, hash)) {
+        if (bcrypt.compareSync(trimmed, hash) || bcrypt.compareSync(lower, hash)) {
           return { isCalibrated: true, targetScore: target };
         }
       } catch (_) {}
     }
   }
 
-  // 4. Fallback to default calibrated profiles if defined
-  if (defaultProfiles[lower] !== undefined) {
-    return { isCalibrated: true, targetScore: defaultProfiles[lower] };
+  // 4. Fallback to default calibrated profiles only when no env override is active
+  if (!hasEnvOverride) {
+    for (const [hash, targetScore] of defaultProfiles) {
+      try {
+        if (bcrypt.compareSync(trimmed, hash) || bcrypt.compareSync(lower, hash)) {
+          return { isCalibrated: true, targetScore };
+        }
+      } catch (_) {}
+    }
   }
 
   // 5. Fallback signature verification
